@@ -1,15 +1,15 @@
-load("data/default_constants_list.Rda")
-load("data/default_constants_table.Rda")
-load("data/default_employees.Rda")
-load("data/default_end_month.Rda")
-load("data/default_growth_rates.Rda")
-load("data/default_int_lev.Rda")
-load("data/default_lease_att.Rda")
-load("data/default_past_leases.Rda")
-load("data/default_start_month.Rda")
-load("data/norm_default.Rda")
-load("data/norm_early_default.Rda")
-
+# load("data/default_constants_list.Rda")
+# load("data/default_constants_table.Rda")
+# load("data/default_employees.Rda")
+# load("data/default_end_month.Rda")
+# load("data/default_growth_rates.Rda")
+# load("data/default_int_lev.Rda")
+# load("data/default_lease_att.Rda")
+# load("data/default_past_leases.Rda")
+# load("data/default_start_month.Rda")
+# load("data/norm_default.Rda")
+# load("data/norm_early_default.Rda")
+#
 #' The reverse.irr function
 #'
 #' This function calculates the irr of a lease (as if it was a loan) given an
