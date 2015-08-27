@@ -9,9 +9,9 @@
  load("data/default_start_month.Rda")
  load("data/norm_default.Rda")
  load("data/norm_early_default.Rda")
- library(dplyr)
- library(ggplot2)
- library(xlsx)
+library(dplyr)
+library(ggplot2)
+library(xlsx)
 #
 #' The reverse.irr function
 #'
@@ -44,12 +44,12 @@ asset.val <- function(init.val,
                       pay.schedule){
   relevant.pay.indexes <- c(which(pay.schedule != 0))
   relevant.pay <- pay.schedule[relevant.pay.indexes]
-
+  
   temp = rep(init.val, length(relevant.pay))
   toReturn <- rep(0,length(pay.schedule))
-
+  
   temp[1] = init.val - (relevant.pay[1] - reverse.irr(init.val = init.val, pay.schedule = relevant.pay) * init.val)
-
+  
   for (x in 2:length(relevant.pay)){
     temp[x] = temp[x-1] -
       (relevant.pay[x] - reverse.irr(init.val = init.val, pay.schedule = relevant.pay) * temp[x-1])
@@ -57,7 +57,7 @@ asset.val <- function(init.val,
   }
   toReturn[1: relevant.pay.indexes[1] - 1] <- init.val
   toReturn[which(toReturn < 0)] <- 0
-
+  
   toReturn
 }
 
@@ -68,7 +68,7 @@ asset.val <- function(init.val,
 #' @return a data frame where each row represents a lease
 #' @export
 lease.combinations <- function(lease.att = default.lease.att) {
-
+  
   combs <- expand.grid(lease.length = lease.att$lease.length$param.types,
                        markup = lease.att$markup$param.types,
                        sales.price = lease.att$sales.price$param.types,
@@ -131,10 +131,10 @@ prd <- function(co.indicator = FALSE, past.payments, past.pay.dates, installment
     # Leases only have predicted future payments if they aren't charged off.
     paid.indexes = which(installment.states == "paid")
     unpaid.indexes = which(installment.states == "unpaid")
-
+    
     if (length(past.payments) != 0){
       # If there have been past payments that data is taken into account when predicting future payments
-
+      
       if (length(paid.indexes) == 0){
         # If no installments have been fully paid yet
         future.payments <- installments.balance[unpaid.indexes]
@@ -145,7 +145,7 @@ prd <- function(co.indicator = FALSE, past.payments, past.pay.dates, installment
         average.prop.paid = sum(past.payments[which(past.pay.dates <= installment.pay.dates[last.paid])]) /
           sum(installments[1:last.paid])
         average.days.late = round(mean(installment.pay.dates[paid.indexes] - installment.dates[paid.indexes]))
-
+        
         if (average.prop.paid > 1){
           # If people "overpay" on installments, they get a discount and potentially less payments total
           future.payments = sum(installments.balance[unpaid.indexes]) - cumsum(installments.balance[unpaid.indexes])
@@ -201,83 +201,84 @@ collect.past <- function(leases = default.past.leases,
                          lease.depreciation = 0,
                          bad.debt = 0,
                          leases.booked = 0,
-                         ongoing.leases = 0)
+                         ongoing.leases = 0,
+                         payments.sum = 0)
   # Iterate through each lease
   for (x in 1: nrow(leases)) {
     payments.vector = rep(0,length(toReturn$payment.expected))
     pdue.vector = rep(0,length(toReturn$payment.due))
-
+    
     if (leases$status[x] == "returned"){
       # If leases are "returned" they basically don't exist except for payments arleady made
-
+      
       past.payment.indexes <- unlist(sapply(leases$payment.dates[[x]], function(date){which(date == toReturn$dates)}))
-
+      
       # Group the past payments so that payments on same days are combined
       unique.pay.indexes = unique(past.payment.indexes)
       unique.payments = rep(0, length(unique.pay.indexes))
-
+      
       for (i in 1:length(past.payment.indexes)){
         unique.payments[which(unique.pay.indexes == past.payment.indexes[i])] =
           unique.payments[which(unique.pay.indexes == past.payment.indexes[i])] +
           leases$lease.payments[[x]][i]
       }
-
+      
       # Past payments
       toReturn$payment.expected[unique.pay.indexes] = toReturn$payment.expected[unique.pay.indexes] + unique.payments
     } else {
       start.index <- which(toReturn$dates == leases$start.date[x])
-
+      
       toReturn$leases.booked[start.index] <- toReturn$leases.booked[start.index] + 1
-
+      
       # Payment gap
       pay.gap = if (leases$freq[[x]] == "weekly") 7
       else if (leases$freq[[x]] == "biweekly") 14
       else if (leases$freq[[x]] == "monthly") 365/12
       else if (substr(leases$freq[[x]],1,11) == "semimonthly") 15
-
+      
       # Add down payment in payment vectors
       toReturn$payment.due[start.index] <- toReturn$payment.due[start.index] + leases$down.payments[x]
       toReturn$payment.expected[start.index] <- toReturn$payment.expected[start.index] + leases$down.payments[x]
       pdue.vector[start.index] <- pdue.vector[start.index] + leases$down.payments[x]
       payments.vector[start.index] <- payments.vector[start.index] +leases$down.payments[x]
-
+      
       # Indexes of installments in toReturn
       installment.indexes <- unlist(sapply(leases$installment.dates[[x]], function(date){which(date == toReturn$dates)}))
-
+      
       # Payments Due
       toReturn$payment.due[installment.indexes] = toReturn$payment.due[installment.indexes] + leases$installments[[x]]
       pdue.vector[installment.indexes] = pdue.vector[installment.indexes] + leases$installments[[x]]
-
+      
       # Indexes of payments in toReturn
       past.payment.indexes <- unlist(sapply(leases$payment.dates[[x]], function(date){which(date == toReturn$dates)}))
-
+      
       # Group the past payments so that payments on same days are combined
       unique.pay.indexes = unique(past.payment.indexes)
       unique.payments = rep(0, length(unique.pay.indexes))
-
+      
       for (i in 1:length(past.payment.indexes)){
         unique.payments[which(unique.pay.indexes == past.payment.indexes[i])] =
           unique.payments[which(unique.pay.indexes == past.payment.indexes[i])] +
           leases$lease.payments[[x]][i]
       }
-
+      
       # Past payments
       toReturn$payment.expected[unique.pay.indexes] = toReturn$payment.expected[unique.pay.indexes] + unique.payments
       payments.vector[unique.pay.indexes] = payments.vector[unique.pay.indexes] + unique.payments
-
+      
       # Asset.Acq.Outflow
       toReturn$asset.acq.outflow[start.index] <- toReturn$asset.acq.outflow[start.index] + leases$price[x] + leases$down.payments[x]
-
+      
       # Linear Asset Valuation
-
+      
       # How long a lease lasts
       lease.length.days <- if (leases$status[[x]] == "paid") (as.numeric(max(leases$payment.dates[[x]]) - leases$start.date[x]) + 1)
       else (as.numeric(max(leases$installment.dates[[x]]) - leases$start.date[x]) + 1)
-
+      
       # How long after the start.date until first payment
       first.pay.gap <- default.past.leases$installment.dates[[x]][1] - default.past.leases$start.date[x]
       if (first.pay.gap < 0) first.pay.gap = 0
-
+      
       if (lease.length.days < 0){
         # If lease is paid off before its start.date it has no value as an asset
         temp.linear = 0
@@ -298,9 +299,9 @@ collect.past <- function(leases = default.past.leases,
         toReturn$ongoing.leases[start.index : (start.index + lease.length.days)] =
           toReturn$ongoing.leases[start.index : (start.index + lease.length.days)] + 1
       }
-
+      
       # Loan assets valuation
-
+      
       if (lease.length.days < 30){
         # If lease length is small, just make it the same as the linear valuation
         temp.loan = temp.linear
@@ -310,20 +311,22 @@ collect.past <- function(leases = default.past.leases,
         else (asset.val(init.val = leases$price[x] + leases$down.payments[x], pay.schedule = pdue.vector))
         temp.loan[1:start.index] <- 0
       }
-
+      
       # Predicting payments
       if (leases$status[[x]] == "active"){
         # Only active payments will have future payments
         unpaid.indexes = which(default.past.leases$installment.states[[x]] == "unpaid")
-
+        
         if ((Sys.Date() - leases$installment.dates[[x]][unpaid.indexes[1]]) > assumptions$charge.off.time && length(leases$lease.payments[[x]]) != 0){
           # If the lease hasn't had any new payments for a certain time, it's charged off and the asset value/bad debt is changed to reflect that
           temp.linear[which(toReturn$dates == leases$installment.dates[[x]][unpaid.indexes[1]] + assumptions$charge.off.time) : length(temp.linear)] <- 0
+          temp.loan[which(toReturn$dates == leases$installment.dates[[x]][unpaid.indexes[1]] + assumptions$charge.off.time) : length(temp.loan)] <- 0          
           bad.debt.temp = leases$installments.balance[[x]][unpaid.indexes]
           toReturn$bad.debt[installment.indexes[unpaid.indexes]] = toReturn$bad.debt[installment.indexes[unpaid.indexes]] + bad.debt.temp
         } else if ((Sys.Date() - leases$start.date[x]) > assumptions$charge.off.time && length(leases$lease.payments[[x]]) == 0) {
           # If the lease hasn't had any payments at all for a certain time, it's charged off and the asset value/bad debt is changed
           temp.linear <- rep(0, length(temp.linear))
+          temp.loan <- rep(0,length(temp.loan))
           bad.debt.temp = leases$installments.balance[[x]]
           toReturn$bad.debt[installment.indexes] = toReturn$bad.debt[installment.indexes] + bad.debt.temp
         } else {
@@ -335,20 +338,26 @@ collect.past <- function(leases = default.past.leases,
                          pay.gap = pay.gap, start.index = start.index, start.date = leases$start.date[x])
           toReturn$payment.expected[installment.indexes[unpaid.indexes]] =
             toReturn$payment.expected[installment.indexes[unpaid.indexes]] + toAdd
-
+          
           payments.vector[installment.indexes[unpaid.indexes]] =
             payments.vector[installment.indexes[unpaid.indexes]] + toAdd
-
+          
           bad.debt.toAdd = leases$installments.balance[[x]][unpaid.indexes] - toAdd
           bad.debt.toAdd[which(bad.debt.toAdd < 0)] = 0
           toReturn$bad.debt[installment.indexes[unpaid.indexes]] = toReturn$bad.debt[installment.indexes[unpaid.indexes]] + bad.debt.toAdd
         }
       }
-
+      
       # Now, update the toReturn linear and loan assets
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.linear
-      toReturn$total.assets.loan = toReturn$total.assets.loan + temp.loan
-
+      toReturn$total.assets.loan <- toReturn$total.assets.loan + temp.loan
+      
+      # Deal with payments sum
+      toReturn$payments.sum[start.index: length(payments.vector)] <- toReturn$payments.sum[start.index: length(payments.vector)] +
+        (sum(payments.vector[start.index : length(payments.vector)]) -cumsum(payments.vector[start.index : length(payments.vector)])) * 
+        sum(payments.vector)/sum(pdue.vector)
+      
+      
       # Lease Depreciation
       pay.indexes <- which(payments.vector != 0)
       pay.indexes <- pay.indexes[which(pay.indexes > start.index)]
@@ -370,19 +379,19 @@ collect.past <- function(leases = default.past.leases,
           deprec.values[length(pay.indexes)] = deprec.values[length(pay.indexes)] + temp.linear[pay.indexes[length(pay.indexes)]]
         }
       }
-
+      
       # Check if any payments are NA, if so just set to 0.
       if (any(is.na(deprec.values))){
         deprec.values = 0
       }
-
+      
       toReturn$lease.depreciation[pay.indexes] = toReturn$lease.depreciation[pay.indexes] + deprec.values
     }
   }
-
+  
   # Payment.process.cost is just a percentage of the payment.expected
   toReturn$payment.process.cost = toReturn$payment.expected * assumptions$pay.process.pct
-
+  
   toReturn
 }
 
@@ -399,10 +408,10 @@ test.collect.past <- collect.past()
 #' @return a data frame representing cash flow metrics of the average of input leases
 #' @export
 calc.average <- function(leases = test.lease.combinations,
-                          assumptions =  default.constants.list,
-                          default.rate = norm.default.rate,
-                          early.default.rate = norm.early.default.rate){
-
+                         assumptions =  default.constants.list,
+                         default.rate = norm.default.rate,
+                         early.default.rate = norm.early.default.rate){
+  
   # Initialize the data.frame, set days to 2 years
   toReturn <- data.frame(days = c(1:1000),
                          payment.due = 0,
@@ -417,34 +426,34 @@ calc.average <- function(leases = test.lease.combinations,
   for (x in 1: nrow(leases)) {
     # multiply sales price by weight
     this.sales.price <- leases[x, 'sales.price']*leases[x, 'weights']
-
+    
     # time between each payment depends on lease type
     payment.gap <- if (leases[x, 'pay.freq'] == "w") 7
     else if (leases[x, 'pay.freq'] == "b") 14
     else if (leases[x, 'pay.freq'] == "s") floor(365/24)
     else if (leases[x, 'pay.freq'] == "m") floor(365/12)
-
+    
     # the number of payments if this was a normal lease
     no.payments.norm <- if (leases[x, 'pay.freq'] == "w") c(1:floor(leases[x, 'lease.length'] * 365 / 84))
     else if (leases[x, 'pay.freq'] == "b") c(1:floor(leases[x, 'lease.length'] * 365 / 168))
     else if (leases[x, 'pay.freq'] == "s") c(1: (leases[x, 'lease.length'] * 2))
     else if (leases[x, 'pay.freq'] == "m") c(1: leases[x, 'lease.length'])
-
+    
     # First values representing the initial payment,same for pay due, pay expected, and asset acquisition cost
     initial.pay <- this.sales.price * leases[x, 'init.pay.pct']
     toReturn$payment.due[1] = toReturn$payment.due[1] + initial.pay
     toReturn$payment.expected[1] = toReturn$payment.expected[1] + initial.pay
     toReturn$asset.acq.outflow[1] = toReturn$asset.acq.outflow[1] + initial.pay
-
+    
     # payment due is calculated as if lease was normal
     payment.amt <- (this.sales.price - initial.pay / (1 + assumptions$sales.tax)) * leases[x, 'markup'] / (1-assumptions$sales.tax)/ length(no.payments.norm)
     toReturn$payment.due[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <-
       toReturn$payment.due[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] + payment.amt
-
+    
     # Asset acquisition outflow is also always the same
     toReturn$asset.acq.outflow[assumptions$delivery.time] <-
       toReturn$asset.acq.outflow[assumptions$delivery.time] + assumptions$discount*(this.sales.price - initial.pay)
-
+    
     # payment expected (and processing cost) depends on type of lease
     if (leases[x, 'pay.manner']  == "90D"){
       no.payments.actual <-
@@ -452,74 +461,74 @@ calc.average <- function(leases = test.lease.combinations,
       else if (leases[x, 'pay.freq'] == "b") c(1:floor((90 + assumptions$delivery.time - assumptions$first.pay.gap)/14))
       else if (leases[x, 'pay.freq'] == "s") c(1: floor((90 + assumptions$delivery.time - assumptions$first.pay.gap) / 365 * 24))
       else if (leases[x, 'pay.freq'] == "m") c(1: floor((90 + assumptions$delivery.time - assumptions$first.pay.gap) / 365 * 12))
-
+      
       payment.amt.actual <- (this.sales.price - initial.pay / (1 + assumptions$sales.tax)) * assumptions$ninetyD.markup / (1-assumptions$sales.tax)
-
+      
       toReturn$payment.expected[assumptions$delivery.time + assumptions$ninetyD.gap] <-
         toReturn$payment.expected[assumptions$delivery.time + assumptions$ninetyD.gap] + payment.amt.actual
-
+      
       toReturn$payment.process.cost[assumptions$delivery.time + assumptions$ninetyD.gap] <-
         toReturn$payment.process.cost[assumptions$delivery.time + assumptions$ninetyD.gap] + payment.amt.actual * assumptions$pay.process.pct
-
+      
       coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / (length(no.payments.norm) * (payment.gap - 1) + 1 - assumptions$first.pay.gap)
       temp.depr <- rep(0,1000)
       temp.depr[1:(assumptions$first.pay.gap - 1)] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)
       temp.depr[assumptions$first.pay.gap : 1000] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay) - coeff*c(1:(1000 - assumptions$first.pay.gap + 1))
       temp.depr[(assumptions$first.pay.gap + assumptions$ninetyD.gap) : 1000] <- 0
-
+      
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.depr
       toReturn$total.assets.loan <- toReturn$total.assets.loan + temp.depr
-
+      
       toReturn$lease.depreciation[assumptions$delivery.time + assumptions$ninetyD.gap] =
         toReturn$lease.depreciation[assumptions$delivery.time + assumptions$ninetyD.gap] + temp.depr[1]
     }
     else if (leases[x, 'pay.manner'] == "early"){
-
+      
       # the amount they actually pay, should be more than the supposed amount
       actual.pay <- payment.amt * (1 + assumptions$early.pay.amt)
-
+      
       # the amount their payment actually counts towards their balance
       effective.pay <- payment.amt+ payment.amt*assumptions$early.pay.amt/(1 - assumptions$early.pay.discount)
-
+      
       # the last payment is different because it's whatever's left of their balance they owe
       no.payments.actual <- c(1:(1+((length(no.payments.norm) * payment.amt) %/% effective.pay)))
       last.payment <- ((this.sales.price - initial.pay) * leases[x, 'markup'] / (1-assumptions$sales.tax))%%effective.pay
-
+      
       # temporary vector to hold expected payments
       temp <- rep(0,length(toReturn$payment.expected))
       temp[((no.payments.actual-1) * payment.gap) + assumptions$first.pay.gap] <- actual.pay
       temp[max(which(temp != 0))] <- last.payment
-
+      
       amt.financed <- (this.sales.price - initial.pay) * assumptions$discount + initial.pay
-
+      
       tempdue <- rep(0,1000)
       tempdue[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <- payment.amt
-
+      
       temp2 <- asset.val(init.val = amt.financed, pay.schedule = tempdue)
-
+      
       temp2[(assumptions$first.pay.gap + (length(no.payments.actual) * payment.gap)) : 1000] <- 0
       toReturn$total.assets.loan = toReturn$total.assets.loan + temp2
-
+      
       # account for default rate
       temp[((no.payments.actual-1) * payment.gap) + assumptions$first.pay.gap] <-
         temp[((no.payments.actual-1) * payment.gap) + assumptions$first.pay.gap] *
         cumprod(early.default.rate[(no.payments.actual -1) * payment.gap + 1]^(payment.gap/(365/12)))
-
+      
       bad.debt <- rep(0, length(toReturn$payment.expected))
       bad.debt[which(temp != 0)] <- actual.pay - temp[which(temp!= 0)]
       bad.debt[max(which(temp != 0))] <- last.payment - temp[max(which(temp != 0))]
       toReturn$bad.debt <- toReturn$bad.debt + bad.debt
-
+      
       toReturn$payment.expected <- toReturn$payment.expected + temp
       toReturn$payment.process.cost <- toReturn$payment.process.cost + temp*assumptions$pay.process.pct
-
+      
       coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / (length(no.payments.norm) * (payment.gap) - assumptions$first.pay.gap)
       temp.depr <- rep(0,1000)
       temp.depr[1:(assumptions$first.pay.gap - 1)] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)
       temp.depr[assumptions$first.pay.gap : 1000] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay) - coeff*c(1:(1000 - assumptions$first.pay.gap + 1))
       temp.depr[(assumptions$first.pay.gap + (length(no.payments.actual) * payment.gap)) : 1000] <- 0
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.depr
-
+      
       pay.indexes <- which(temp != 0)
       deprec.values <- 1:length(pay.indexes)
       deprec.values[1] = temp.depr[1] - temp.depr[pay.indexes[1]]
@@ -533,31 +542,31 @@ calc.average <- function(leases = test.lease.combinations,
       temp <- rep(0,length(toReturn$payment.expected))
       temp[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <- payment.amt
       amt.financed <- (this.sales.price - initial.pay) * assumptions$discount + initial.pay
-
+      
       tempdue <- rep(0,1000)
       tempdue[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <- payment.amt
       temp2 <- asset.val(init.val = amt.financed, pay.schedule = tempdue)
       toReturn$total.assets.loan = toReturn$total.assets.loan + temp2
-
+      
       # account for default rate
       temp[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <-
         temp[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] *
         cumprod(default.rate[(no.payments.norm-1) * payment.gap + 1]^(payment.gap/(365/12)))
-
+      
       bad.debt <- rep(0, length(toReturn$payment.expected))
       bad.debt[which(temp != 0)] <- payment.amt - temp[which(temp!= 0)]
       toReturn$bad.debt <- toReturn$bad.debt + bad.debt
-
+      
       toReturn$payment.expected <- toReturn$payment.expected + temp
       toReturn$payment.process.cost <- toReturn$payment.process.cost + temp*assumptions$pay.process.pct
       coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / (length(no.payments.norm) * (payment.gap - 1) + 1 - assumptions$first.pay.gap)
       temp.depr <- rep(0,1000)
       temp.depr[1:(assumptions$first.pay.gap - 1)] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)
       temp.depr[assumptions$first.pay.gap : 1000] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay) - coeff*c(1:(1000 - assumptions$first.pay.gap + 1))
-
+      
       temp.depr[which(temp.depr < 0)] <- 0
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.depr
-
+      
       pay.indexes <- which(temp != 0)
       deprec.values <- 1:length(pay.indexes)
       deprec.values[1] = temp.depr[1] - temp.depr[pay.indexes[1]]
@@ -567,10 +576,10 @@ calc.average <- function(leases = test.lease.combinations,
       toReturn$lease.depreciation[which(temp != 0)] = toReturn$lease.depreciation[which(temp != 0)] + deprec.values
     }
   }
-
+  
   toReturn$payments.sum <- (sum(toReturn$payment.expected) - cumsum(toReturn$payment.expected)) *
     sum(toReturn$payment.due) / sum(toReturn$payment.expected)
-
+  
   toReturn
 }
 
@@ -595,7 +604,7 @@ projections.by.day <- function(start.date = head(as.Date(default.growth.rates$Da
   if((class(end.date) %in% "Date") == FALSE) stop ("end.date must be an object of class Date")
   if((length(start.date) == 1) == FALSE) stop ("start.date must contain 1 date")
   if((length(end.date) == 1) == FALSE) stop ("end.date must contain 1 date")
-
+  
   start.date.out <- min(c(start.date,growth.projections$date))
   end.date.out <- max(c(end.date,growth.projections$date))
   # create a data frame to hold the daily volume projections
@@ -603,18 +612,18 @@ projections.by.day <- function(start.date = head(as.Date(default.growth.rates$Da
   out <- data.frame(date=seq(start.date.out, by=1, len=len),
                     booked.unrounded=0,
                     booked=0)
-
+  
   # order the growth projections in case not ordered
   growth.projections <- growth.projections[order(growth.projections$date),]
-
+  
   # check there are enough growth projections for algorithm to run
   ngp <- nrow(growth.projections)
   if(ngp < 1) stop("At least 1 date needs to be provided in growth.projections")
-
+  
   # before the earliest and after the last growth projections, the rate of growth is constant
   out$booked.unrounded[which(out$date <= growth.projections$date[1])] <- growth.projections$rate[1]/growth.projections$per.what[1]
   out$booked.unrounded[which(out$date >= growth.projections$date[ngp])] <- growth.projections$rate[ngp]/growth.projections$per.what[1]
-
+  
   if(ngp > 1) {
     for(j in 2:ngp) {
       len <- as.numeric(growth.projections$date[j] - growth.projections$date[(j-1)])
@@ -624,14 +633,14 @@ projections.by.day <- function(start.date = head(as.Date(default.growth.rates$Da
         ((1-weights)*growth.projections$rate[(j-1)] + (weights)*growth.projections$rate[j])
     }
   }
-
+  
   # calculate the estimated booked deals on each day
   rcm <- round(cumsum(out$booked.unrounded))
   out$booked <- rcm - c(0,rcm[1:(length(rcm)-1)])
-
+  
   # only allow outputted dates within the start and end dates
   out <- out[which(out$date >= start.date & out$date <= end.date),c("date","booked")]
-
+  
   return(out)
 }
 
@@ -658,10 +667,10 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn <- data.frame()
   # Find the first day of the month of the earliest lease, this is the date where data.frame will start
   first.of.month <- as.Date(paste(substr(hist.leases$dates[1],1,8),"01",sep=""))
-
+  
   toReturn <- data.frame(dates = seq(first.of.month, by="day",length.out = (max(lease.growth$date) -
                                                                               hist.leases$dates[1] + 1000)))
-
+  
   # Initialize all the parameters of the data frame, most are 0 except costs that are constant across days
   toReturn$apps.per.month <- 0
   toReturn$average.app.per.day <- 0
@@ -690,7 +699,7 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn$legal.cost <- floor(assumptions$legal.base.month * 12 / 365 * 100) / 100
   toReturn$ops.cost <- 0
   toReturn$payments.sum <- 0
-
+  
   past.indexes <- (1 + hist.leases$dates[1] - toReturn$dates[1]) : (nrow(hist.leases) + hist.leases$dates[1] - toReturn$dates[1])
   toReturn$payment.due[past.indexes] = toReturn$payment.due[past.indexes] + hist.leases$payment.due
   toReturn$payment.expected[past.indexes] = toReturn$payment.expected[past.indexes] + hist.leases$payment.expected
@@ -702,114 +711,115 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn$bad.debt[past.indexes] = toReturn$bad.debt[past.indexes] + hist.leases$bad.debt
   toReturn$leases.booked[past.indexes] = toReturn$leases.booked[past.indexes] + hist.leases$leases.booked
   toReturn$ongoing.leases[past.indexes] = toReturn$ongoing.leases[past.indexes] + hist.leases$ongoing.leases
-
+  toReturn$payments.sum[past.indexes] = toReturn$payments.sum[past.indexes] + hist.leases$payments.sum
+  
   # Third party data costs increase with number of apps, so they increase whenever a new lease happens
   toReturn$third.pt.data.cost[past.indexes] <- toReturn$third.pt.data.cost[past.indexes] +
     toReturn$leases.booked[past.indexes]*assumptions$third.pt.data/assumptions$app.conversion.rt
-
+  
   # Legal costs generally increases with growth of business, small constant ties it to each lease
   toReturn$legal.cost[past.indexes] <- toReturn$legal.cost[past.indexes] + toReturn$leases.booked[past.indexes]*assumptions$add.legal.cost
-
+  
   past.months <- unique(format.Date(toReturn$dates[past.indexes], format = "%m %y"))
   for (b in 1 : length(past.months)){
     this.month <- which(format.Date(toReturn$dates, format = "%m %y") == past.months[b])
-
+    
     toReturn$apps.per.month[this.month] <- toReturn$apps.per.month[this.month] + sum(toReturn$leases.booked[this.month]) /  assumptions$app.conversion.rt
     toReturn$it.cost[this.month] <- toReturn$it.cost[this.month] + (sum(toReturn$leases.booked[this.month]) /  assumptions$app.conversion.rt)^.7 * assumptions$it.rate / 365 * 12
   }
-
+  
   for (x in 1: length(lease.growth$date)) {
     start.index <- which(toReturn$dates == lease.growth$date[x])
-
+    
     rel.indexes1 <- which(average.lease$payment.due != 0)
     toReturn$payment.due[start.index + rel.indexes1 - 1] <-
       toReturn$payment.due[start.index + rel.indexes1 - 1] +
       lease.growth$booked[x]*average.lease$payment.due[rel.indexes1]
-
+    
     rel.indexes2 <- which(average.lease$payment.expected != 0)
     toReturn$payment.expected[start.index + rel.indexes2 - 1] <-
       toReturn$payment.expected[start.index + rel.indexes2 - 1] +
       lease.growth$booked[x]*average.lease$payment.expected[rel.indexes2]
-
+    
     rel.indexes3 <- which(average.lease$asset.acq.outflow != 0)
     toReturn$asset.acq.outflow[start.index + rel.indexes3 - 1] <-
       toReturn$asset.acq.outflow[start.index + rel.indexes3 - 1] +
       lease.growth$booked[x]*average.lease$asset.acq.outflow[rel.indexes3]
-
+    
     rel.indexes4 <- which(average.lease$payment.process.cost != 0)
     toReturn$payment.process.cost[start.index + rel.indexes4 - 1] <-
       toReturn$payment.process.cost[start.index + rel.indexes4 - 1] +
       lease.growth$booked[x]*average.lease$payment.process.cost[rel.indexes4]
-
+    
     rel.indexes5 <- which(average.lease$total.assets.linear != 0)
     toReturn$total.assets.linear[start.index + rel.indexes5 - 1] <-
       toReturn$total.assets.linear[start.index + rel.indexes5 - 1] +
       lease.growth$booked[x]*average.lease$total.assets.linear[rel.indexes5]
-
+    
     rel.indexes6 <- which(average.lease$total.assets.loan != 0)
     toReturn$total.assets.loan[start.index + rel.indexes6 - 1] <-
       toReturn$total.assets.loan[start.index + rel.indexes6 - 1] +
       lease.growth$booked[x]*average.lease$total.assets.loan[rel.indexes6]
-
+    
     rel.indexes7 <- which(average.lease$lease.depreciation != 0)
     toReturn$lease.depreciation[start.index + rel.indexes7 - 1] <-
       toReturn$lease.depreciation[start.index + rel.indexes7 - 1] +
       lease.growth$booked[x]*average.lease$lease.depreciation[rel.indexes7]
-
+    
     rel.indexes8 <- which(average.lease$payments.sum != 0)
     toReturn$payments.sum[start.index + rel.indexes8 - 1] <-
       toReturn$payments.sum[start.index + rel.indexes8 - 1] +
       lease.growth$booked[x]*average.lease$payments.sum[rel.indexes8]
-
+    
     # Third party data costs increase with number of apps, so they increase whenever a new lease happens
     toReturn$third.pt.data.cost[start.index] <- toReturn$third.pt.data.cost[start.index] +
       lease.growth$booked[x]*assumptions$third.pt.data/assumptions$app.conversion.rt
-
+    
     # Legal costs generally increases with growth of business, small constant ties it to each lease
     toReturn$legal.cost[start.index] <- toReturn$legal.cost[start.index] + lease.growth$booked[x]*assumptions$add.legal.cost
-
+    
     # Leases booked
     toReturn$leases.booked[which(toReturn$dates == lease.growth$date[x])] <- toReturn$leases.booked[which(toReturn$dates == lease.growth$date[x])] +
       lease.growth$booked[x]
-
+    
     # Applications for month, for each lease started in that month increment apps per month by 1 divided by app-to-lease conversion rate
     relevant.dates <- which(format.Date(toReturn$dates, format = "%m %y") == format.Date(lease.growth$date[x], format = "%m %y"))
     toReturn$apps.per.month[relevant.dates] <- toReturn$apps.per.month[relevant.dates] + lease.growth$booked[x]/ assumptions$app.conversion.rt
-
+    
     # Number of ongoing leases on any day
     toReturn$ongoing.leases[which(toReturn$dates >= lease.growth$date[x] &
                                     toReturn$dates < (lease.growth$date[x] + assumptions$avg.lease.length * 365 / 12))] <-
       toReturn$ongoing.leases[which(toReturn$dates >= lease.growth$date[x] &
                                       toReturn$dates < (lease.growth$date[x] + assumptions$avg.lease.length * 365 / 12))] + lease.growth$booked[x]
-
+    
     # additional monthly IT cost depending on number of new applications in that month
     relevant.dates2 <- which(format.Date(toReturn$dates, format = "%m %y") == format.Date(lease.growth$date[x], format = "%m %y"))
     toReturn$it.cost[relevant.dates2] <- toReturn$it.cost[relevant.dates2] + toReturn$apps.per.month[relevant.dates2]^.7 * assumptions$it.rate / 365 * 12
   }
-
+  
   # First of month costs
   toReturn$payment.process.cost[which(format.Date(toReturn$dates, format = "%d") == "01")] <- assumptions$pay.process.month
-
+  
   toReturn$rent.cost[which(format.Date(toReturn$dates, format = "%d") == "01")] <- assumptions$rent.base
-
+  
   # Accounting for employees
-
+  
   # Hired Employees, not csm or salespeople
-  emp.sheet$start.date <- as.Date(emp.sheet$start.date, "%m/%d/%y")
-  emp.sheet$end.date <- as.Date(emp.sheet$end.date, "%m/%d/%y")
+  emp.sheet$start.date <- as.Date(emp.sheet$start.date, "%m/%d/%Y")
+  emp.sheet$end.date <- as.Date(emp.sheet$end.date, "%m/%d/%Y")
   for (i in 1:nrow(emp.sheet)) {
     toReturn$no.employees[which(toReturn$dates >= as.vector(emp.sheet[i,]$start.date) &
                                   toReturn$dates < as.vector(emp.sheet[i,]$end.date))] <-
       toReturn$no.employees[which(toReturn$dates >= as.vector(emp.sheet[i,]$start.date) &
                                     toReturn$dates < as.vector(emp.sheet[i,]$end.date))] + 1
-
+    
     toReturn$other.salaries[which(toReturn$dates >= as.vector(emp.sheet[i,]$start.date) &
                                     toReturn$dates < as.vector(emp.sheet[i,]$end.date))] <-
       toReturn$other.salaries[which(toReturn$dates >= as.vector(emp.sheet[i,]$start.date) &
                                       toReturn$dates < as.vector(emp.sheet[i,]$end.date))] +
       emp.sheet[i,]$salary / 365
   }
-
+  
   firsts.of.month <- toReturn$dates[which(format.Date(toReturn$dates, format = "%d") == "01" &
                                             format.Date(toReturn$dates, format = "%m %y") != format.Date(first.of.month, format = "%m %y"))]
   #Average.apps.per.day
@@ -818,40 +828,40 @@ cash.flow <- function(hist.leases = test.collect.past,
       sum(toReturn$leases.booked[which(format.Date(toReturn$dates, format = "%m %y") == format.Date(c(first.of.month,firsts.of.month)[i], format = "%m %y"))] / assumptions$app.conversion.rt)/
       length(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(c(first.of.month,firsts.of.month)[i], format = "%m %y")))
   }
-
+  
   #Change in average apps per day
   toReturn$average.app.per.day.diff[which(format.Date(toReturn$dates, format= "%m %y") == format.Date(first.of.month, format = "%m %y"))] <- toReturn$average.app.per.day[1]
   for (i in seq_along(firsts.of.month)){
     toReturn$average.app.per.day.diff[which(format.Date(toReturn$dates, format = "%m %y") == format.Date(firsts.of.month[i], format = "%m %y"))] <-
       toReturn$average.app.per.day[which(toReturn$dates == firsts.of.month[i])] - toReturn$average.app.per.day[which(toReturn$dates == firsts.of.month[i]) - 1]
   }
-
+  
   # Number of customer service managers, tied to the number of ongoing leases
   toReturn$no.csm[which(toReturn$ongoing.leases != 0)] <- ceiling(toReturn$ongoing.leases[which(toReturn$ongoing.leases != 0)] / assumptions$leases.per.csm)
-
+  
   # Number of salespeople, tied to apps per month and app difference per month
   toReturn$no.salesperson[which(toReturn$average.app.per.day.diff > 0)] <- ceiling(toReturn$average.app.per.day[which(toReturn$average.app.per.day.diff > 0)] / assumptions$apps.per.salesp +
                                                                                      toReturn$average.app.per.day.diff[which(toReturn$average.app.per.day.diff > 0)] / assumptions$n.apps.per.salesp)
   toReturn$no.salesperson[which(toReturn$average.app.per.day.diff<= 0)] <-  ceiling(toReturn$average.app.per.day[which(toReturn$average.app.per.day.diff<= 0)] / assumptions$apps.per.salesp)
-
+  
   # increment number of employees and total salaries based on number of csm and salespeople
   toReturn$no.employees <- toReturn$no.employees + toReturn$no.csm + toReturn$no.salesperson
-
+  
   toReturn$csm.salaries <- floor(toReturn$total.salaries + toReturn$no.csm * assumptions$csm.salary / 365 * 100) / 100
   toReturn$sales.salaries <- floor(toReturn$no.salesperson * assumptions$sales.salary / 365 * 100) / 100
   toReturn$total.salaries <- toReturn$csm.salaries + toReturn$sales.salaries + toReturn$other.salaries
-
+  
   # Employee benefits
   toReturn$employee.tax <- toReturn$total.salaries * assumptions$employee.tax
   toReturn$employee.benefit <- toReturn$total.salaries * assumptions$employee.benefits
-
+  
   # Rent per employee per day (cubicle costs)
   toReturn$rent.cost <- toReturn$rent.cost + toReturn$no.employees * 3.25
-
+  
   # Add up all the costs
   toReturn$ops.cost <- toReturn$payment.process.cost + toReturn$total.salaries + toReturn$employee.tax +
     toReturn$employee.benefit + toReturn$rent.cost + toReturn$third.pt.data.cost + toReturn$it.cost + toReturn$legal.cost
-
+  
   # Round everything
   toReturn$apps.per.month <- round(toReturn$apps.per.month)
   toReturn$average.app.per.day <- floor(toReturn$average.app.per.day * 100) / 100
@@ -868,11 +878,11 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn$it.cost <- floor(toReturn$it.cost * 100)/100
   toReturn$legal.cost <- floor(toReturn$legal.cost * 100) / 100
   toReturn$ops.cost <- floor(toReturn$ops.cost * 100) / 100
-
+  
   toReturn$cash.flow <- toReturn$payment.expected - toReturn$ops.cost - toReturn$asset.acq.outflow
-
+  
   toReturn <- filter(toReturn, dates < last(lease.growth$date))
-
+  
   temp = data.frame(dates = c(first.of.month, firsts.of.month[which(firsts.of.month < last(lease.growth$date))]),
                     #                    month = 1:length(c(first.of.month, firsts.of.month[which(firsts.of.month < last(lease.growth$date))])),
                     apps.per.month = 0,
@@ -933,7 +943,7 @@ cash.flow <- function(hist.leases = test.collect.past,
     temp$ops.cost[i] <- sum(toReturn$ops.cost[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))])
     temp$cash.flow[i] <- sum(toReturn$cash.flow[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))])
     temp$payments.sum[i] <- toReturn$payments.sum[(max(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y"))))]
-
+    
     #    temp$year =  ceiling((temp$month-6)/12) - 1
   }
   toReturn <- temp
@@ -964,15 +974,15 @@ debt.calc <- function (df = test.cash.flow,
     }
     toReturn
   }
-
+  
   il.sheet.indexes <- sapply(df$dates, find.index)
-
+  
   debt.borrowed <- if (assumptions$depr.method == 2) df$total.assets.loan * il.sheet$Leverage[il.sheet.indexes]
   else if (assumptions$depr.method == 1) df$total.assets.linear * il.sheet$Leverage[il.sheet.indexes]
   debt.difference <- c(debt.borrowed[1],
                        diff(debt.borrowed))
   debt.cost <- debt.borrowed * (il.sheet$Interest[il.sheet.indexes]  / 12)
-
+  
   asset.change <- rep(0, length(debt.borrowed))
   asset.change[1] = total.assets[1]
   for (i in 2:length(asset.change)){
@@ -1002,13 +1012,13 @@ debt.calc <- function (df = test.cash.flow,
     df$taxed.income[rel.months] = floor(income.tax[i] / 4 * 100) / 100
   }
   df$net.income = df$pre.tax.profit - df$taxed.income
-
+  
   df$cash.flow = df$ cash.flow - df$taxed.income
   df$total.assets = floor(total.assets)
   df$cash.flow.debt = floor((df$cash.flow + debt.difference - debt.cost) * 100)/100
   df$debt.interest = floor(debt.cost * 100) / 100
   df$debt.borrowed = floor(debt.borrowed * 100) / 100
-
+  
   df$cum.cash.with.debt <- cumsum(df$cash.flow.debt)
   df$cum.cash.without.debt <- cumsum(df$cash.flow)
   df$MoneyForEmp <- df$payment.expected - df$asset.acq.outflow +
@@ -1128,7 +1138,7 @@ yrSummary <- function(df = test.output.subset){
   toReturn$Revenue_Assets = floor(toReturn$Revenue / toReturn$TotalLeaseAssetsYearEnd * 100) / 100
   toReturn$TotalExpenses_Revenue = floor(toReturn$TotalExpenses / toReturn$Revenue * 100) / 100
   toReturn$EBITDA_Revenue = floor(toReturn$EBITDA / toReturn$Revenue * 100) / 100
-
+  
   toReturn
 }
 
@@ -1439,35 +1449,35 @@ saveToSheet <- function(file = NULL,
                         assumptions = default.constants.table,
                         emp.data = default.employees,
                         growth.data = default.growth.rates){
-
+  
   yrtemp  <- data.frame(
     Projections = colnames(yrdata)[2:length(colnames(yrdata))]
   )
-
+  
   for (i in 1 : nrow(yrdata)) {
     yrtemp[,paste("Year_", i, sep = "")] <- as.numeric(yrdata[i,][2:length(colnames(yrdata))])
   }
-
+  
   mthdates <- data.frame(
     Projections = colnames(mthdata)[2]
   )
-
+  
   mthtemp <- data.frame(
     Projections = colnames(mthdata)[3:length(colnames(mthdata))]
   )
-
+  
   for (i in 1 : nrow(mthdata)){
     mthdates[,paste("Month_",i,sep = "")] <- mthdata[i,][2]
     mthtemp[,paste("Month_",i,sep = "")] <- as.numeric(mthdata[i,][3:length(colnames(mthdata))])
   }
-
+  
   # Write final results to one big spreadsheet
   wb <- createWorkbook()
   boldstyle <- CellStyle(wb) + Font(wb, isBold = TRUE)
   currency <- CellStyle(wb) + DataFormat("$#,##0_);[Red]($#,##0)")
   comma <- CellStyle(wb) + DataFormat("#,##0.00")
   wholecomma <- CellStyle(wb) + DataFormat("#,##0")
-
+  
   create.style.list <- function(style, startIndex, endIndex){
     toReturn = list()
     for (i in startIndex:endIndex){
@@ -1475,7 +1485,7 @@ saveToSheet <- function(file = NULL,
     }
     toReturn
   }
-
+  
   yr.sheet <- createSheet(wb, sheetName = "Yearly Summary")
   yGrowthMetrics <- createCell(createRow(yr.sheet, rowIndex = 2), colIndex = 1)[[1,1]]
   setCellValue(yGrowthMetrics, "GrowthMetrics")
@@ -1499,7 +1509,7 @@ saveToSheet <- function(file = NULL,
                colStyle = list(`1` = boldstyle))
   createFreezePane(yr.sheet, rowSplit = 2, colSplit = 3)
   autoSizeColumn(sheet=yr.sheet, colIndex = 1: (ncol(yrtemp)+1))
-
+  
   mth.sheet <- createSheet(wb, sheetName = "Monthly Summary")
   mGrowthMetrics <- createCell(createRow(mth.sheet, rowIndex = 2), colIndex = 1)[[1,1]]
   setCellValue(mGrowthMetrics, "GrowthMetrics")
@@ -1510,7 +1520,7 @@ saveToSheet <- function(file = NULL,
   mCashFlow <- createCell(createRow(mth.sheet, rowIndex = 28), colIndex = 1)[[1,1]]
   setCellValue(mCashFlow, "CashFlow (before taxes)")
   setCellStyle(mCashFlow, boldstyle)
-
+  
   addDataFrame(data.frame(mthdates), mth.sheet, col.names = TRUE, row.names = FALSE, startColumn = 2, colnamesStyle = boldstyle,
                colStyle = list(`1` = boldstyle))
   addDataFrame(data.frame(mthtemp[1:4,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 3, startColumn = 2, colnamesStyle = boldstyle,
@@ -1521,37 +1531,37 @@ saveToSheet <- function(file = NULL,
                                  create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
   createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
   autoSizeColumn(sheet = mth.sheet, colIndex = 1:(ncol(mthtemp) +1))
-
+  
   const.sheet <- createSheet(wb, sheetName = "Constants")
   addDataFrame(assumptions, const.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`2` = comma))
   createFreezePane(const.sheet, rowSplit = 2, colSplit = 1)
   autoSizeColumn(sheet = const.sheet, colIndex = 1:ncol(assumptions))
-
+  
   irr <- data.frame(AnnualIRR=irr.month())
   irr$BackForEveryDollar <- lease.returns()$total.return
   irr.sheet <- createSheet(wb, sheetName = "LeaseIRR")
   addDataFrame(irr, irr.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`2` = comma))
   createFreezePane(irr.sheet, rowSplit = 2, colSplit = 1)
   autoSizeColumn(sheet = irr.sheet, colIndex = 1:ncol(irr))
-
+  
   emp.sheet <- createSheet(wb, sheetName = "Employees")
   addDataFrame(emp.data, emp.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`3` = currency))
   createFreezePane(emp.sheet, rowSplit = 2, colSplit = 3)
   autoSizeColumn(sheet = emp.sheet, colIndex = 1:ncol(emp.data))
-
+  
   growth.sheet <- createSheet(wb, sheetName = "Growth Projections")
   addDataFrame(growth.data, growth.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`2` = wholecomma))
   createFreezePane(growth.sheet, rowSplit = 2, colSplit = 1)
   autoSizeColumn(sheet = yr.sheet, colIndex = 1:ncol(growth.data))
-
+  
   default.sheet <- createSheet(wb, sheetName = "Default Rate")
   cum.default.rate(file = "dtoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "dtoAdd.png", sheet = default.sheet)
-
+  
   lease.cf.sheet <- createSheet(wb, sheetName = "Lease Cash Flow")
   cash.by.month(file = "cbmtoAdd.png",small.text.size = 2, text.size = 8)
   addPicture(file = "cbmtoAdd.png", sheet = lease.cf.sheet)
-
+  
   bad.debt.sheet <- createSheet(wb, sheetName = "Bad Debt")
   bad.debt.to.pay(file = "bdptoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "bdptoAdd.png", sheet = bad.debt.sheet, startRow = 1)
@@ -1559,9 +1569,9 @@ saveToSheet <- function(file = NULL,
   addPicture(file = "bdtotalAdd.png", sheet = bad.debt.sheet, startRow = 38)
   bad.debt.month(file = "bdtoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "bdtoAdd.png", sheet = bad.debt.sheet, startRow = 75)
-
+  
   if (!is.null(file)){
-   saveWorkbook(wb, file = file)
+    saveWorkbook(wb, file = file)
   }
   wb
 }
