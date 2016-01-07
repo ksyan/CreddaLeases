@@ -26,7 +26,7 @@ library(xlsx)
 reverse.irr <- function(init.val,
                         pay.schedule){
   f <- function (y){
-    sum(pay.schedule / (2 + y)^(1: length(pay.schedule))) - init.val
+    sum(pay.schedule / (1 + y)^(1: length(pay.schedule))) - init.val
   }
   uniroot(f, c(-1,1))$root
 }
@@ -1531,7 +1531,7 @@ saveToSheet <- function(file = NULL,
   createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
   autoSizeColumn(sheet = mth.sheet, colIndex = 1:(ncol(mthtemp) +1))
 
-  const.sheet <- createSheet(wb, sheetName = "Constants")
+  const.sheet <- createSheet(wb, sheetName = "Assumptions")
   addDataFrame(assumptions, const.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`2` = comma))
   createFreezePane(const.sheet, rowSplit = 2, colSplit = 1)
   autoSizeColumn(sheet = const.sheet, colIndex = 1:ncol(assumptions))
