@@ -504,7 +504,6 @@ calc.average <- function(leases = test.lease.combinations,
       tempdue[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <- payment.amt
 
       temp2 <- asset.val(init.val = amt.financed, pay.schedule = tempdue)
-
       temp2[(assumptions$first.pay.gap + (length(no.payments.actual) * payment.gap)) : 1000] <- 0
       toReturn$total.assets.loan = toReturn$total.assets.loan + temp2
 
@@ -521,13 +520,12 @@ calc.average <- function(leases = test.lease.combinations,
       toReturn$payment.expected <- toReturn$payment.expected + temp
       toReturn$payment.process.cost <- toReturn$payment.process.cost + temp*assumptions$pay.process.pct
 
-      coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / (length(no.payments.norm) * (payment.gap) - assumptions$first.pay.gap)
+      coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / ((length(no.payments.norm)-1) * (payment.gap))
       temp.depr <- rep(0,1000)
       temp.depr[1:(assumptions$first.pay.gap - 1)] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)
       temp.depr[assumptions$first.pay.gap : 1000] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay) - coeff*c(1:(1000 - assumptions$first.pay.gap + 1))
       temp.depr[(assumptions$first.pay.gap + (length(no.payments.actual) * payment.gap)) : 1000] <- 0
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.depr
-
       pay.indexes <- which(temp != 0)
       deprec.values <- 1:length(pay.indexes)
       deprec.values[1] = temp.depr[1] - temp.depr[pay.indexes[1]]
@@ -558,14 +556,13 @@ calc.average <- function(leases = test.lease.combinations,
 
       toReturn$payment.expected <- toReturn$payment.expected + temp
       toReturn$payment.process.cost <- toReturn$payment.process.cost + temp*assumptions$pay.process.pct
-      coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / (length(no.payments.norm) * (payment.gap - 1) + 1 - assumptions$first.pay.gap)
+      coeff <- ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)  / ((length(no.payments.norm)-1) * (payment.gap))
       temp.depr <- rep(0,1000)
       temp.depr[1:(assumptions$first.pay.gap - 1)] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay)
       temp.depr[assumptions$first.pay.gap : 1000] = ((this.sales.price - initial.pay) * assumptions$discount + initial.pay) - coeff*c(1:(1000 - assumptions$first.pay.gap + 1))
 
       temp.depr[which(temp.depr < 0)] <- 0
       toReturn$total.assets.linear <- toReturn$total.assets.linear + temp.depr
-
       pay.indexes <- which(temp != 0)
       deprec.values <- 1:length(pay.indexes)
       deprec.values[1] = temp.depr[1] - temp.depr[pay.indexes[1]]
@@ -1148,15 +1145,15 @@ test.yrSummary <- yrSummary()
 #' This calculates 12 month, 18 month, and total returns given average lease data
 #'
 #' @param a.lease, data on cash metrics of the average lease
-#' @param assumptions, a list of constant values
+#' @param assumption.list, a list of constant values
 #' @return a list with 12 month, 18 month, and total returns
 #' @export
 lease.returns <- function(a.lease = test.average.lease,
-                          assumptions = default.constants.list){
+                          assumption.list = default.constants.list){
   toReturn <- list()
-  toReturn$twelve.m.return <- floor(sum(a.lease$payment.expected[c(1:365)]) / (sum(a.lease$asset.acq.outflow[c(1:365)])) /(1+assumptions$sales.tax)* 100) / 100
-  toReturn$eighteen.m.return <- floor(sum(a.lease$payment.expected[c(1:547)]) / (sum(a.lease$asset.acq.outflow[c(1:547)])) /(1+assumptions$sales.tax)* 100) / 100
-  toReturn$total.return <- floor(sum(a.lease$payment.expected) / (sum(a.lease$asset.acq.outflow)) /(1+assumptions$sales.tax)* 100) / 100
+  toReturn$twelve.m.return <- floor(sum(a.lease$payment.expected[c(1:365)]) / (sum(a.lease$asset.acq.outflow[c(1:365)])) /(1+assumption.list$sales.tax)* 100) / 100
+  toReturn$eighteen.m.return <- floor(sum(a.lease$payment.expected[c(1:547)]) / (sum(a.lease$asset.acq.outflow[c(1:547)])) /(1+assumption.list$sales.tax)* 100) / 100
+  toReturn$total.return <- floor(sum(a.lease$payment.expected) / (sum(a.lease$asset.acq.outflow)) /(1+assumption.list$sales.tax)* 100) / 100
   toReturn
 }
 
@@ -1437,7 +1434,9 @@ cum.default.rate <- function (a.lease = test.average.lease,
 #' and the workbook will be returned.
 #' @param yrdata, cash flow information by year, from the yrSummary function
 #' @param mthdata, cash flow information by year, from the mthSummary function
+#' @param avg.data, data representing an average lease, from the calc.average function
 #' @param assumptions, constants represented in the original data frame form
+#' @param d.assumptions, constants related to interest and leverage in original data frame form
 #' @param emp.data, data on employees
 #' @param growth.data, growth.rates data
 #' @return a data frame with debt metrics added on to cash flow metrics
@@ -1445,9 +1444,14 @@ cum.default.rate <- function (a.lease = test.average.lease,
 saveToSheet <- function(file = NULL,
                         yrdata = test.yrSummary,
                         mthdata = test.mthSummary,
+                        avg.data = test.average.lease,
                         assumptions = default.constants.table,
+                        d.assumptions = default.int.lev,
                         emp.data = default.employees,
                         growth.data = default.growth.rates){
+
+  temp.assumptions.list <- as.list(assumptions$Values)
+  names(temp.assumptions.list) <- assumptions$Names
 
   yrtemp  <- data.frame(
     Projections = colnames(yrdata)[2:length(colnames(yrdata))]
@@ -1536,11 +1540,26 @@ saveToSheet <- function(file = NULL,
   createFreezePane(const.sheet, rowSplit = 2, colSplit = 1)
   autoSizeColumn(sheet = const.sheet, colIndex = 1:ncol(assumptions))
 
-  irr <- data.frame(AnnualIRR=irr.month())
-  irr$BackForEveryDollar <- lease.returns()$total.return
+  debt.c.sheet <- createSheet(wb, sheetName = "Debt Assumptions")
+  addDataFrame(d.assumptions, debt.c.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle)
+  createFreezePane(debt.c.sheet, rowSplit = 2, colSplit = 1)
+  dMethod <- createCell(createRow(debt.c.sheet, rowIndex = (nrow(d.assumptions) + 2)), colIndex = 4)[[1,1]]
+  if (temp.assumptions.list$depr.method == 1){
+    setCellValue(dMethod, "Linear Depreciation Method")
+  } else {
+    setCellValue(dMethod, "Loan Depreciation Method")
+  }
+  autoSizeColumn(sheet = debt.c.sheet, colIndex = 1:ncol(d.assumptions))
+
+  irr <- data.frame(AnnualIRR=irr.month(df = avg.data))
+  irr$BackForEveryDollar <- lease.returns(a.lease = avg.data, assumption.list = temp.assumptions.list)$total.return
   irr.sheet <- createSheet(wb, sheetName = "LeaseIRR")
   addDataFrame(irr, irr.sheet, col.names = TRUE, row.names = FALSE, colnamesStyle = boldstyle, colStyle = list(`2` = comma))
-  createFreezePane(irr.sheet, rowSplit = 2, colSplit = 1)
+  cash <- cumsum(avg.data$payment.expected / (1+temp.assumptions.list$sales.tax)- avg.data$asset.acq.outflow)
+  temp.df <- data.frame(Month = 1:26, Net_Cash = cash[(1:26) * 28 - 14])
+  addDataFrame(data.frame(temp.df), irr.sheet, col.names = TRUE, row.names = FALSE, startRow = 3, colnamesStyle = boldstyle,
+               colStyle = list(`2` = currency))
+  createFreezePane(irr.sheet, rowSplit = 4, colSplit = 1)
   autoSizeColumn(sheet = irr.sheet, colIndex = 1:ncol(irr))
 
   emp.sheet <- createSheet(wb, sheetName = "Employees")

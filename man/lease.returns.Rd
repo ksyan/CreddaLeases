@@ -5,12 +5,12 @@
 \title{The lease.returns function}
 \usage{
 lease.returns(a.lease = test.average.lease,
-  assumptions = default.constants.list)
+  assumption.list = default.constants.list)
 }
 \arguments{
 \item{a.lease,}{data on cash metrics of the average lease}
 
-\item{assumptions,}{a list of constant values}
+\item{assumption.list,}{a list of constant values}
 }
 \value{
 a list with 12 month, 18 month, and total returns

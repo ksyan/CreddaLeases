@@ -5,7 +5,8 @@
 \title{The saveToSheet function}
 \usage{
 saveToSheet(file = NULL, yrdata = test.yrSummary,
-  mthdata = test.mthSummary, assumptions = default.constants.table,
+  mthdata = test.mthSummary, avg.data = test.average.lease,
+  assumptions = default.constants.table, d.assumptions = default.int.lev,
   emp.data = default.employees, growth.data = default.growth.rates)
 }
 \arguments{
@@ -16,7 +17,11 @@ and the workbook will be returned.}
 
 \item{mthdata,}{cash flow information by year, from the mthSummary function}
 
+\item{avg.data,}{data representing an average lease, from the calc.average function}
+
 \item{assumptions,}{constants represented in the original data frame form}
+
+\item{d.assumptions,}{constants related to interest and leverage in original data frame form}
 
 \item{emp.data,}{data on employees}
 
