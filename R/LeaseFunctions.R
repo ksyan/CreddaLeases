@@ -26,7 +26,7 @@ library(xlsx)
 reverse.irr <- function(init.val,
                         pay.schedule){
   f <- function (y){
-    sum(pay.schedule / (1 + y)^(1: length(pay.schedule))) - init.val
+    sum(pay.schedule / (2 + y)^(1: length(pay.schedule))) - init.val
   }
   uniroot(f, c(-1,1))$root
 }
