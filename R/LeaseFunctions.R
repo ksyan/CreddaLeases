@@ -1573,19 +1573,19 @@ saveToSheet <- function(file = NULL,
   autoSizeColumn(sheet = yr.sheet, colIndex = 1:ncol(growth.data))
 
   default.sheet <- createSheet(wb, sheetName = "Default Rate")
-  cum.default.rate(file = "dtoAdd.png", small.text.size = 2, text.size = 8)
+  cum.default.rate(a.lease = avg.data, file = "dtoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "dtoAdd.png", sheet = default.sheet)
 
   lease.cf.sheet <- createSheet(wb, sheetName = "Lease Cash Flow")
-  cash.by.month(file = "cbmtoAdd.png",small.text.size = 2, text.size = 8)
+  cash.by.month(a.lease = avg.data, file = "cbmtoAdd.png",small.text.size = 2, text.size = 8)
   addPicture(file = "cbmtoAdd.png", sheet = lease.cf.sheet)
 
   bad.debt.sheet <- createSheet(wb, sheetName = "Bad Debt")
-  bad.debt.to.pay(file = "bdptoAdd.png", small.text.size = 2, text.size = 8)
+  bad.debt.to.pay(a.lease = avg.data, file = "bdptoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "bdptoAdd.png", sheet = bad.debt.sheet, startRow = 1)
-  bad.debt.total.pdue(file = "bdtotalAdd.png", small.text.size = 2, text.size = 8)
+  bad.debt.total.pdue(a.lease = avg.data, file = "bdtotalAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "bdtotalAdd.png", sheet = bad.debt.sheet, startRow = 38)
-  bad.debt.month(file = "bdtoAdd.png", small.text.size = 2, text.size = 8)
+  bad.debt.month(a.lease = avg.data, file = "bdtoAdd.png", small.text.size = 2, text.size = 8)
   addPicture(file = "bdtoAdd.png", sheet = bad.debt.sheet, startRow = 75)
 
   if (!is.null(file)){
