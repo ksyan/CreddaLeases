@@ -7,7 +7,8 @@
 saveToSheet(file = NULL, yrdata = test.yrSummary,
   mthdata = test.mthSummary, avg.data = test.average.lease,
   assumptions = default.constants.table, d.assumptions = default.int.lev,
-  emp.data = default.employees, growth.data = default.growth.rates)
+  emp.data = default.employees, growth.data = default.growth.rates,
+  d.rate = norm.default.rate)
 }
 \arguments{
 \item{file,}{the name of the file the sheet will be saved as. If null the file won't be esaved
@@ -26,6 +27,8 @@ and the workbook will be returned.}
 \item{emp.data,}{data on employees}
 
 \item{growth.data,}{growth.rates data}
+
+\item{d.rate,}{default rate expressed as length 1000 vector with numbers between 0 and 1}
 }
 \value{
 a data frame with debt metrics added on to cash flow metrics

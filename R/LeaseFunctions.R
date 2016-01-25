@@ -1220,8 +1220,9 @@ cash.by.day <- function(a.lease = test.average.lease,
   toReturn$labels$y <- "Cumulative Cash"
   toReturn$labels$title <- "Cumulative Cash over Time"
   toReturn$labels$colour <- ""
-  toReturn <- toReturn + geom_text(x = 160, y = -1050, label = paste("Min:", as.character(floor(min(toReturn$data$cash) * 100)/100), "on day", as.character(which.min(toReturn$data$cash))), size = small.text.size) +
-    geom_text(x = 600, y = 420, label = paste("Max:", as.character(floor(max(toReturn$data$cash) * 100)/100), "from day", as.character(which.max(toReturn$data$cash)), "on"), size = small.text.size)
+  toReturn <- toReturn +
+    annotate("text", label = paste("Min:", as.character(floor(min(toReturn$data$cash) * 100)/100), "on day", as.character(which.min(toReturn$data$cash))), x = 600, y = min(toReturn$data$cash), size = small.text.size,colour = "black") +
+    annotate("text", label =  paste("Max:", as.character(floor(max(toReturn$data$cash) * 100)/100), "from day", as.character(which.max(toReturn$data$cash)), "on"), x = 600, y = min(toReturn$data$cash)+100, size = small.text.size,colour = "black")
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1253,8 +1254,8 @@ cash.by.month <- function(a.lease = test.average.lease,
   toReturn$labels$title <- "Cumulative Cash over Time"
   toReturn$labels$colour <- ""
   toReturn <- toReturn +
-    geom_text(x = 6, y = -1050, label = paste("Min:", as.character(floor(min(toReturn$data$cash) * 100)/100), "on month", as.character(which.min(toReturn$data$cash))), size = small.text.size) +
-    geom_text(x = 21, y = 400, label = paste("Max:", as.character(floor(max(toReturn$data$cash) * 100)/100), "from month", as.character(which.max(toReturn$data$cash)), "on"), size = small.text.size)
+    annotate("text", label = paste("Min:", as.character(floor(min(toReturn$data$cash) * 100)/100), "on month", as.character(which.min(toReturn$data$cash))), x = 21, y = min(toReturn$data$cash), size = small.text.size,colour = "black") +
+    annotate("text", label = paste("Max:", as.character(floor(max(toReturn$data$cash) * 100)/100), "from month", as.character(which.max(toReturn$data$cash)), "on"), x = 21, y = min(toReturn$data$cash) + 100, size = small.text.size,colour = "black")
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1320,8 +1321,8 @@ bad.debt.month <- function (a.lease = test.average.lease,
   toReturn$labels$title <- "Cumulative Bad Debt Over Time"
   toReturn$labels$colour <- ""
   toReturn <- toReturn +
-    geom_text(x = 12, y = 0, label = paste("Min: 0 from months", as.character(min(which(toReturn$data$bad.debt == 0))), "to", as.character(max(which(toReturn$data$bad.debt == 0)))), size = small.text.size) +
-    geom_text(x = 25, y = .26, label = paste("Max:", as.character(floor(max(toReturn$data$bad.debt) * 100) / 100), "from month", as.character(which.max(toReturn$data$bad.debt)), "on"), size = small.text.size)
+    annotate("text", label = paste("Min: 0 from months", as.character(min(which(toReturn$data$bad.debt == 0))), "to", as.character(max(which(toReturn$data$bad.debt == 0)))), x = 25, y = 0.1, size = small.text.size, colour = "black") +
+    annotate("text", label = paste("Max:", as.character(floor(max(toReturn$data$bad.debt) * 100) / 100), "from month", as.character(which.max(toReturn$data$bad.debt)), "on"), x = 25, y = 0, size = small.text.size,colour = "black")
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1352,8 +1353,8 @@ bad.debt.to.pay <- function (a.lease = test.average.lease,
   toReturn$labels$title <- "Bad Debt to Payments over time"
   toReturn$labels$colour <- ""
   toReturn <- toReturn +
-    geom_text(x = 680, y = .23, label = paste(as.character(floor(max(cumsum(a.lease$bad.debt) / cumsum(a.lease$payment.expected)) * 100)), "% of payers default by day",
-                                              as.character(which.max(cumsum(a.lease$bad.debt) / cumsum(a.lease$payment.expected)))), size = small.text.size)
+    annotate("text", label = paste(as.character(floor(max(cumsum(a.lease$bad.debt) / cumsum(a.lease$payment.expected)) * 100)), "% of payers default by day",
+                                   as.character(which.max(cumsum(a.lease$bad.debt) / cumsum(a.lease$payment.expected)))), x = 600, y = 0, size = small.text.size,colour = "black")
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1383,8 +1384,8 @@ bad.debt.total.pdue <- function (a.lease = test.average.lease,
   toReturn$labels$title <- "Bad Debt Over Payment.due"
   toReturn$labels$colour <- ""
   toReturn <- toReturn +
-    geom_text(x = 12, y = 0, label = paste("Min: 0 from months", as.character(min(which(toReturn$data$bad.debt == 0))), "to", as.character(max(which(toReturn$data$bad.debt == 0)))), size = small.text.size) +
-    geom_text(x = 25, y = .16, label = paste("Max:", as.character(floor(max(toReturn$data$bad.debt) * 100) / 100), "from month", as.character(which.max(toReturn$data$bad.debt)), "on"), size = small.text.size)
+    annotate("text", label = paste("Min: 0 from months", as.character(min(which(toReturn$data$bad.debt == 0))), "to", as.character(max(which(toReturn$data$bad.debt == 0)))), x = 20, y = 0.05, size = small.text.size, colour = "black") +
+    annotate("text", label = paste("Max:", as.character(floor(max(toReturn$data$bad.debt) * 100) / 100), "from month", as.character(which.max(toReturn$data$bad.debt)), "on"), x = 20, y = 0, size = small.text.size,colour = "black")
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1416,8 +1417,8 @@ cum.default.rate <- function (a.lease = test.average.lease,
   toReturn$labels$y <- "% of payers who have defaulted"
   toReturn$labels$title <- "Cumulative Default Rate over time"
   toReturn$labels$colour <- ""
-  toReturn <- toReturn +
-    geom_text(x = 11, y = .23, label = paste(as.character(floor(max(toReturn$data$default.rate) * 100)), "% of payers default by month", as.character(assumptions$avg.lease.length)), size = small.text.size)
+  toReturn <- toReturn + annotate("text", label = paste(as.character(floor(max(toReturn$data$default.rate) * 100)), "% of payers default by month", as.character(assumptions$avg.lease.length)), x = 10, y = 0, size = small.text.size, colour = "black")
+
   toReturn$theme$text$size = text.size
   if (!is.null(file)){
     ggsave(toReturn, filename = file, width = 5, height = 2.5)
@@ -1439,6 +1440,7 @@ cum.default.rate <- function (a.lease = test.average.lease,
 #' @param d.assumptions, constants related to interest and leverage in original data frame form
 #' @param emp.data, data on employees
 #' @param growth.data, growth.rates data
+#' @param d.rate, default rate expressed as length 1000 vector with numbers between 0 and 1
 #' @return a data frame with debt metrics added on to cash flow metrics
 #' @export
 saveToSheet <- function(file = NULL,
@@ -1448,7 +1450,8 @@ saveToSheet <- function(file = NULL,
                         assumptions = default.constants.table,
                         d.assumptions = default.int.lev,
                         emp.data = default.employees,
-                        growth.data = default.growth.rates){
+                        growth.data = default.growth.rates,
+                        d.rate = norm.default.rate){
 
   temp.assumptions.list <- as.list(assumptions$Values)
   names(temp.assumptions.list) <- assumptions$Names
@@ -1573,7 +1576,7 @@ saveToSheet <- function(file = NULL,
   autoSizeColumn(sheet = yr.sheet, colIndex = 1:ncol(growth.data))
 
   default.sheet <- createSheet(wb, sheetName = "Default Rate")
-  cum.default.rate(a.lease = avg.data, file = "dtoAdd.png", small.text.size = 2, text.size = 8)
+  cum.default.rate(a.lease = avg.data, file = "dtoAdd.png", small.text.size = 2, text.size = 8, default.rate = d.rate)
   addPicture(file = "dtoAdd.png", sheet = default.sheet)
 
   lease.cf.sheet <- createSheet(wb, sheetName = "Lease Cash Flow")
