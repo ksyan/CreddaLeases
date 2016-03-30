@@ -201,6 +201,7 @@ collect.past <- function(leases = default.past.leases,
                          lease.depreciation = 0,
                          bad.debt = 0,
                          leases.booked = 0,
+                         no.stores = 0,
                          ongoing.leases = 0,
                          payments.sum = 0)
   # Iterate through each lease
@@ -229,8 +230,11 @@ collect.past <- function(leases = default.past.leases,
       start.index <- which(toReturn$dates == leases$start.date[x])
 
       toReturn$leases.booked[start.index] <- toReturn$leases.booked[start.index] + 1
+      toReturn$no.stores[start.index] <- max(toReturn$no.stores[start.index], toReturn$leases.booked[start.index] / assumptions$leases.per.store)
 
-      # Payment gap
+      toReturn$no.stores[(start.index+1):nrow(toReturn)] <- pmax(toReturn$no.stores[(start.index+1):nrow(toReturn)], toReturn$no.stores[start.index])
+
+            # Payment gap
       pay.gap = if (leases$freq[[x]] == "weekly") 7
       else if (leases$freq[[x]] == "biweekly") 14
       else if (leases$freq[[x]] == "monthly") 365/12
@@ -390,7 +394,6 @@ collect.past <- function(leases = default.past.leases,
 
   # Payment.process.cost is just a percentage of the payment.expected
   toReturn$payment.process.cost = toReturn$payment.expected * assumptions$pay.process.pct
-
   toReturn
 }
 
@@ -439,13 +442,13 @@ calc.average <- function(leases = test.lease.combinations,
     else if (leases[x, 'pay.freq'] == "m") c(1: leases[x, 'lease.length'])
 
     # First values representing the initial payment,same for pay due, pay expected, and asset acquisition cost
-    initial.pay <- this.sales.price * leases[x, 'init.pay.pct']
+    initial.pay <- this.sales.price * leases[x, 'init.pay.pct'] / (1 + assumptions$sales.tax)
     toReturn$payment.due[1] = toReturn$payment.due[1] + initial.pay
     toReturn$payment.expected[1] = toReturn$payment.expected[1] + initial.pay
     toReturn$asset.acq.outflow[1] = toReturn$asset.acq.outflow[1] + initial.pay
 
     # payment due is calculated as if lease was normal
-    payment.amt <- (this.sales.price - initial.pay / (1 + assumptions$sales.tax)) * leases[x, 'markup'] / (1-assumptions$sales.tax)/ length(no.payments.norm)
+    payment.amt <- (this.sales.price - initial.pay) * leases[x, 'markup'] * (1+assumptions$sales.tax)/ length(no.payments.norm)
     toReturn$payment.due[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] <-
       toReturn$payment.due[((no.payments.norm-1) * payment.gap) + assumptions$first.pay.gap] + payment.amt
 
@@ -461,7 +464,7 @@ calc.average <- function(leases = test.lease.combinations,
       else if (leases[x, 'pay.freq'] == "s") c(1: floor((90 + assumptions$delivery.time - assumptions$first.pay.gap) / 365 * 24))
       else if (leases[x, 'pay.freq'] == "m") c(1: floor((90 + assumptions$delivery.time - assumptions$first.pay.gap) / 365 * 12))
 
-      payment.amt.actual <- (this.sales.price - initial.pay / (1 + assumptions$sales.tax)) * assumptions$ninetyD.markup / (1-assumptions$sales.tax)
+      payment.amt.actual <- (this.sales.price - initial.pay) * assumptions$ninetyD.markup * (1 + assumptions$sales.tax)
 
       toReturn$payment.expected[assumptions$delivery.time + assumptions$ninetyD.gap] <-
         toReturn$payment.expected[assumptions$delivery.time + assumptions$ninetyD.gap] + payment.amt.actual
@@ -491,7 +494,7 @@ calc.average <- function(leases = test.lease.combinations,
 
       # the last payment is different because it's whatever's left of their balance they owe
       no.payments.actual <- c(1:(1+((length(no.payments.norm) * payment.amt) %/% effective.pay)))
-      last.payment <- ((this.sales.price - initial.pay) * leases[x, 'markup'] / (1-assumptions$sales.tax))%%effective.pay
+      last.payment <- ((this.sales.price - initial.pay) * leases[x, 'markup'] * (1+assumptions$sales.tax))%%effective.pay
 
       # temporary vector to hold expected payments
       temp <- rep(0,length(toReturn$payment.expected))
@@ -672,6 +675,8 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn$average.app.per.day <- 0
   toReturn$average.app.per.day.diff <- 0
   toReturn$leases.booked <- 0
+  toReturn$no.stores <- 0
+  toReturn$new.stores <- 0
   toReturn$ongoing.leases <- 0
   toReturn$payment.due <- 0
   toReturn$payment.expected <- 0
@@ -706,6 +711,7 @@ cash.flow <- function(hist.leases = test.collect.past,
   toReturn$lease.depreciation[past.indexes] = toReturn$lease.depreciation[past.indexes] + hist.leases$lease.depreciation
   toReturn$bad.debt[past.indexes] = toReturn$bad.debt[past.indexes] + hist.leases$bad.debt
   toReturn$leases.booked[past.indexes] = toReturn$leases.booked[past.indexes] + hist.leases$leases.booked
+  toReturn$no.stores[past.indexes] = toReturn$leases.booked[past.indexes] + hist.leases$no.stores
   toReturn$ongoing.leases[past.indexes] = toReturn$ongoing.leases[past.indexes] + hist.leases$ongoing.leases
   toReturn$payments.sum[past.indexes] = toReturn$payments.sum[past.indexes] + hist.leases$payments.sum
 
@@ -777,6 +783,27 @@ cash.flow <- function(hist.leases = test.collect.past,
     # Leases booked
     toReturn$leases.booked[which(toReturn$dates == lease.growth$date[x])] <- toReturn$leases.booked[which(toReturn$dates == lease.growth$date[x])] +
       lease.growth$booked[x]
+
+    # Number of stores
+    if (x == 1){
+      toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] <- toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] +
+        lease.growth$booked[x]/assumptions$leases.per.store
+    } else if (x == 2) {
+      toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] <- toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] +
+        max(lease.growth$booked[x]/assumptions$leases.per.store,lease.growth$booked[x-1]/assumptions$leases.per.store)
+    } else if (x > 2){
+    toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] <- toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] +
+      max(lease.growth$booked[x]/assumptions$leases.per.store,lease.growth$booked[x-1]/assumptions$leases.per.store,lease.growth$booked[x-2]/assumptions$leases.per.store)
+    }
+
+#     # New stores
+#     if (x = 1){
+#       toReturn$new.stores[which(toReturn$dates == lease.growth$date[x])] <-     toReturn$new.stores[which(toReturn$dates == lease.growth$date[x])] +
+#         ceiling(lease.growth$booked[x]/5)
+#     } else {
+#       toReturn$new.Stores[which(toReturn$dates == lease.growth$date[x])] <-     toReturn$new.stores[which(toReturn$dates == lease.growth$date[x])] +
+#         toReturn$no.stores[which(toReturn$dates == lease.growth$date[x])] - toReturn$no.stores[which(toReturn$dates == lease.growth$date[x-1])]
+#     }
 
     # Applications for month, for each lease started in that month increment apps per month by 1 divided by app-to-lease conversion rate
     relevant.dates <- which(format.Date(toReturn$dates, format = "%m %y") == format.Date(lease.growth$date[x], format = "%m %y"))
@@ -883,6 +910,8 @@ cash.flow <- function(hist.leases = test.collect.past,
                     #                    month = 1:length(c(first.of.month, firsts.of.month[which(firsts.of.month < last(lease.growth$date))])),
                     apps.per.month = 0,
                     leases.booked = 0,
+                    no.stores = 0,
+                    new.stores = 0,
                     average.app.per.day = 0,
                     average.app.per.day.diff = 0,
                     ongoing.leases = 0,
@@ -908,11 +937,19 @@ cash.flow <- function(hist.leases = test.collect.past,
                     legal.cost = 0,
                     ops.cost = 0,
                     cash.flow = 0,
-                    payments.sum = 0
+                    payments.sum = 0,
+                    legal.base = assumptions$legal.base.month,
+                    it.base = assumptions$it.base
   )
   for (i in 1:nrow(temp)){
     temp$apps.per.month[i] <- toReturn$apps.per.month[(which(toReturn$dates == temp$dates[i]))]
     temp$leases.booked[i] <- sum(toReturn$leases.booked[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))])
+    if (i == 1) {
+      temp$no.stores[i] <- ceiling(sum(toReturn$leases.booked[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))])/assumptions$leases.per.store)
+    } else {
+      temp$no.stores[i] <- max(temp$no.stores[i-1],ceiling(sum(toReturn$leases.booked[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))])/assumptions$leases.per.store))
+    }
+      #ceiling(sum(toReturn$no.stores[(which(format.Date(toReturn$dates, format = "%m %y") == format.Date(temp$dates[i], format = "%m %y")))]))
     temp$average.app.per.day[i] <-toReturn$average.app.per.day[(which(toReturn$dates == temp$dates[i]))]
     temp$average.app.per.day.diff[i] <-toReturn$average.app.per.day.diff[(which(toReturn$dates == temp$dates[i]))]
     temp$ongoing.leases[i] <- round(sum(toReturn$ongoing.leases[which(toReturn$dates == temp$dates[i])]) / length(which(toReturn$dates == temp$dates[i])))
@@ -942,6 +979,8 @@ cash.flow <- function(hist.leases = test.collect.past,
 
     #    temp$year =  ceiling((temp$month-6)/12) - 1
   }
+  temp$new.stores[1] <- temp$no.stores[1]
+  temp$new.stores[2:nrow(temp)] <- temp$no.stores[2:nrow(temp)] - temp$no.stores[1:nrow(temp)-1]
   toReturn <- temp
   toReturn
 }
@@ -1037,6 +1076,7 @@ test.debt.calc = debt.calc()
 #' @export
 output.subset <- function(df= test.debt.calc, first.month=default.output.start.month, last.month=default.output.end.month) {
   out.df <- df[which(df$dates >= first.month & df$dates <= last.month),]
+
   out.df$month <- c(1:nrow(out.df))
   out.df$year <- ceiling((out.df$month)/12)
   return(out.df)
@@ -1083,12 +1123,78 @@ mthSummary <- function(df = test.output.subset){
               LeaseAcquisition = asset.acq.outflow,
               CashFlowWithoutDebt = cash.flow + taxed.income,
               DebtBorrowed = debt.borrowed,
-              CashFlowWithDebt = cash.flow.debt  + taxed.income
-    )
+              CashFlowWithDebt = cash.flow.debt  + taxed.income)
   toReturn
 }
 
 test.mthSummary <- mthSummary()
+
+#' The mthIncomeSummary function
+#'
+#' Summarizes cash flow data by month
+#'
+#' @param df, cash flow data
+#' @return a data.frame with data organized by month
+#' @export
+mthIncomeSummary <- function(df = test.output.subset){
+  df$quarters = as.numeric(format.Date(df$dates, format = "%m"))
+
+  df$quarters <- floor((df$quarters-1)/3)+1
+#   df$quarters[which(df$quarters %% 12 != 0)] = ceiling(df$quarters[which(df$quarters %% 12 != 0)]/3) %% 4
+#   df$quarters[which(df$quarters %% 12 == 0)] = 4
+  df$quarters = paste(format.Date(df$dates, format = "%Y"), "Q", df$quarters)
+
+  toReturn <- df %>%
+    group_by(quarters) %>%
+    summarise(Date = dates[which.min(dates)],
+
+              #Revenues
+              TotalLeasesBooked = sum(leases.booked),
+              Revenue = sum(payment.expected),
+
+              # Cost of Sales
+              LeaseDepreciation = sum(lease.depreciation),
+
+              # Profit = revenues - cost of sales
+              GrossProfit = Revenue - LeaseDepreciation,
+
+              # Operating Expenses
+
+              # Non Labor Expenses
+              ThirdPartyData = sum(third.pt.data.cost),
+              PaymentProcessing = sum(payment.process.cost),
+              Legal = sum(legal.cost),
+              IT = sum(it.cost),
+              StoreMarketing =3 * round(mean(no.stores)) + 40 * sum(new.stores),
+              TravelExpense = 150 * round(mean(no.employees)),
+              Rent = 150 * round(mean(no.employees)),
+              Utilities = .08 * Rent,
+              Misc = 120 * round(mean(no.employees)) + 2 * TotalLeasesBooked,
+              TotalNonLaborExpenses = ThirdPartyData + PaymentProcessing + Legal + IT +
+                StoreMarketing + TravelExpense + Rent + Utilities + Misc,
+
+              # Labor Expenses
+              SalesLabor = sum(sales.salaries),
+              ServicingLabor = sum(csm.salaries),
+              AdministrativeLabor = sum(other.salaries),
+              BenefitsTaxes = sum(employee.tax + employee.benefit),
+              TotalLaborExpenses = SalesLabor + ServicingLabor + AdministrativeLabor + BenefitsTaxes,
+
+              # Total Expenses
+              TotalExpenses = TotalNonLaborExpenses + TotalLaborExpenses,
+
+              # Earnings
+              EBIT = GrossProfit - TotalExpenses,
+
+              Interest = sum(debt.interest),
+              EBT = EBIT - Interest,
+
+              IncomeTaxes = sum(taxed.income),
+              NetEarnings = EBT - IncomeTaxes)
+  toReturn
+}
+
+test.incomeSummary = mthIncomeSummary()
 
 #' The yrSummary function
 #'
@@ -1151,9 +1257,9 @@ test.yrSummary <- yrSummary()
 lease.returns <- function(a.lease = test.average.lease,
                           assumption.list = default.constants.list){
   toReturn <- list()
-  toReturn$twelve.m.return <- floor(sum(a.lease$payment.expected[c(1:365)]) / (sum(a.lease$asset.acq.outflow[c(1:365)])) /(1+assumption.list$sales.tax)* 100) / 100
-  toReturn$eighteen.m.return <- floor(sum(a.lease$payment.expected[c(1:547)]) / (sum(a.lease$asset.acq.outflow[c(1:547)])) /(1+assumption.list$sales.tax)* 100) / 100
-  toReturn$total.return <- floor(sum(a.lease$payment.expected) / (sum(a.lease$asset.acq.outflow)) /(1+assumption.list$sales.tax)* 100) / 100
+  toReturn$twelve.m.return <-round(sum(a.lease$payment.expected[c(2:365)]/(1 + assumption.list$sales.tax))/(sum(a.lease$asset.acq.outflow[c(2:365)])) , 2)
+  toReturn$eighteen.m.return <- round(sum(a.lease$payment.expected[c(2:547)]) / (sum(a.lease$asset.acq.outflow[c(2:547)])) /(1+assumption.list$sales.tax), 2)
+  toReturn$total.return <- round(sum(a.lease$payment.expected[c(2:1000)]) / (sum(a.lease$asset.acq.outflow[c(2:1000)])) /(1+assumption.list$sales.tax),2)
   toReturn
 }
 
@@ -1426,6 +1532,128 @@ cum.default.rate <- function (a.lease = test.average.lease,
   toReturn
 }
 
+#' The incomeStatement function
+#'
+#' This function formats results into an income statement sheet, optionally saving it to a file
+#'
+#' @param file, the name of the file the sheet will be saved as. If null the file won't be esaved
+#' and the workbook will be returned.
+#' @param yrdata, cash flow information by year, from the yrSummary function
+#' @param mthdata, cash flow information by year, from the mthSummary function
+#' @param avg.data, data representing an average lease, from the calc.average function
+#' @param assumptions, constants represented in the original data frame form
+#' @param d.assumptions, constants related to interest and leverage in original data frame form
+#' @param emp.data, data on employees
+#' @param growth.data, growth.rates data
+#' @param d.rate, default rate expressed as length 1000 vector with numbers between 0 and 1
+#' @return a data frame with debt metrics added on to cash flow metrics
+#' @export
+incomeStatement <- function(file = NULL,
+                            mthdata = test.incomeSummary){
+  mthdates <- data.frame(
+    Projections = colnames(mthdata)[2]
+  )
+
+  mthtemp <- data.frame(
+    Projections = colnames(mthdata)[3:length(colnames(mthdata))]
+  )
+  for (i in 1 : nrow(mthdata)){
+    mthdates[,mthdata[i,][1][[1]]] <- mthdata[i,][2]
+    mthtemp[,mthdata[i,][1][[1]]] <- as.numeric(mthdata[i,][3:length(colnames(mthdata))])
+  }
+
+  # Write final results to one big spreadsheet
+  wb <- createWorkbook()
+  boldstyle <- CellStyle(wb) + Font(wb, isBold = TRUE)
+  currency <- CellStyle(wb) + DataFormat("$#,##0_);[Red]($#,##0)")
+  comma <- CellStyle(wb) + DataFormat("#,##0.00")
+  wholecomma <- CellStyle(wb) + DataFormat("#,##0")
+
+  #Helper
+  create.style.list <- function(style, startIndex, endIndex){
+    toReturn = list()
+    for (i in startIndex:endIndex){
+      eval(parse(text = paste("toReturn$`",i,"`<-",style, sep = "")))
+    }
+    toReturn
+  }
+
+  mth.sheet <- createSheet(wb, sheetName = "Income Statement")
+  mGrowthMetrics <- createCell(createRow(mth.sheet, rowIndex = 1), colIndex = 1)[[1,1]]
+  setCellValue(mGrowthMetrics, "Credda Income Statement")
+  setCellStyle(mGrowthMetrics, boldstyle)
+  mProfitAndLoss <- createCell(createRow(mth.sheet, rowIndex = 2), colIndex = 1)[[1,1]]
+  setCellValue(mProfitAndLoss, "Revenues")
+  setCellStyle(mProfitAndLoss, boldstyle)
+  mCashFlow <- createCell(createRow(mth.sheet, rowIndex = 5), colIndex = 1)[[1,1]]
+  setCellValue(mCashFlow, "Cost of Sales")
+  setCellStyle(mCashFlow, boldstyle)
+  mCashFlow <- createCell(createRow(mth.sheet, rowIndex = 7), colIndex = 1)[[1,1]]
+  setCellValue(mCashFlow, "Gross Profit")
+  setCellStyle(mCashFlow, boldstyle)
+  mCashFlow <- createCell(createRow(mth.sheet, rowIndex = 9), colIndex = 1)[[1,1]]
+  setCellValue(mCashFlow, "Operating Expenses")
+  setCellStyle(mCashFlow, boldstyle)
+  mCashFlow <- createCell(createRow(mth.sheet, rowIndex = 28), colIndex = 1)[[1,1]]
+  setCellValue(mCashFlow, "Earnings")
+  setCellStyle(mCashFlow, boldstyle)
+
+  tempQuarters <- data.frame(Projections = colnames(mthdates)[2:length(colnames(mthdates))])
+
+  addDataFrame(colnames(mthdates), mth.sheet, col.names = FALSE, row.names = FALSE, startRow=1,startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = list('1' = boldstyle), byrow = TRUE)
+#   addDataFrame(data.frame(mthdates), mth.sheet, col.names = TRUE, row.names = FALSE, startColumn = 2, colnamesStyle = boldstyle,
+#                colStyle = list(`1` = boldstyle))
+  # Revenues
+  addDataFrame(data.frame(mthtemp[1,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 3, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "wholecomma", startIndex = 2, endIndex = ncol(mthtemp))))
+  addDataFrame(data.frame(mthtemp[2,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 4, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  # Lease Depreciation
+  addDataFrame(data.frame(mthtemp[3,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 6, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+
+  # Gross Profit
+  addDataFrame(data.frame(mthtemp[4,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 8, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  # Non Labor
+  addDataFrame(data.frame(mthtemp[5:14,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 10, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  # Labor
+  addDataFrame(data.frame(mthtemp[15:19,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 21, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  # Total
+  addDataFrame(data.frame(mthtemp[20,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 27, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  #EBIT
+  addDataFrame(data.frame(mthtemp[21,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 29, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  #Interest and EBT
+  addDataFrame(data.frame(mthtemp[22:23,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 31, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  # Income taxes and Net Earnings
+  addDataFrame(data.frame(mthtemp[24:25,]), mth.sheet, col.names = FALSE, row.names = FALSE, startRow = 34, startColumn = 2, colnamesStyle = boldstyle,
+               colStyle = append(list(`1` = boldstyle), create.style.list(style = "currency", startIndex = 2, endIndex = ncol(mthtemp))))
+  createFreezePane(mth.sheet, rowSplit = 2, colSplit = 3)
+
+  autoSizeColumn(sheet = mth.sheet, colIndex = 1:(ncol(mthtemp) +1))
+
+  if (!is.null(file)){
+    saveWorkbook(wb, file = file)
+  }
+  wb
+
+}
 
 #' The saveToSheet function
 #'
