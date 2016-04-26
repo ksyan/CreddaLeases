@@ -5,10 +5,10 @@
 \title{The saveToSheet function}
 \usage{
 saveToSheet(file = NULL, yrdata = test.yrSummary,
-  mthdata = test.mthSummary, avg.data = test.average.lease,
-  assumptions = default.constants.table, d.assumptions = default.int.lev,
-  emp.data = default.employees, growth.data = default.growth.rates,
-  d.rate = norm.default.rate)
+  mthdata = test.mthSummary, mth.idata = test.incomeSummary,
+  avg.data = test.average.lease, assumptions = default.constants.table,
+  d.assumptions = default.int.lev, emp.data = default.employees,
+  growth.data = default.growth.rates, d.rate = norm.default.rate)
 }
 \arguments{
 \item{file,}{the name of the file the sheet will be saved as. If null the file won't be esaved
@@ -17,6 +17,8 @@ and the workbook will be returned.}
 \item{yrdata,}{cash flow information by year, from the yrSummary function}
 
 \item{mthdata,}{cash flow information by year, from the mthSummary function}
+
+\item{mth.idata,}{incomeSummary information, from mthIncomeSummary function}
 
 \item{avg.data,}{data representing an average lease, from the calc.average function}
 
